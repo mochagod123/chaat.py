@@ -4,21 +4,20 @@ c.kuku.luの非公式ライブラリ
 サンプルコード<br>
 ```
 import chatroom
+import time
 
-chaat = chatroom.Chaat()
+bot = chatroom.WebSocket()
+
+# イベント
+@bot.event
+async def on_chat(message: chatroom.Message):
+    # メッセージ受信
+    if message.content == "こんばんは":
+        await bot.send_room("こんばんは！")
+    print(message)
 
 # ログイン
-chaat.login()
 
-# 部屋の作成
-cr = chaat.create_room()
-
-# URLの取得
-print(cr["url"])
-
-# メッセージ送信
-print(chaat.send_room(cr["hash"], "あああ"))
-
-# メッセージ取得
-print(chaat.fetch_room(cr["hash"]))
+bot.login("ハッシュID")
 ```
+discord.py風になりました。
