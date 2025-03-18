@@ -16,4 +16,4 @@ async def on_chat(message: chatroom.Message):
     await bot.process_command(message)
 
 # ログイン
-bot.login("efx3msmy")
+bot.login("ハッシュID")
