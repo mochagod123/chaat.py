@@ -149,6 +149,14 @@ class Chaat:
 
             return response.json()
         
+class Command:
+    def __init__(self, name, func):
+        self.name = name
+        self.func = func
+
+    async def invoke(self, *args):
+        return await self.func(*args)
+
 class WebSocket():
     def __init__(self, hashid: str = None):
         self.ses = requests.Session()
@@ -156,6 +164,7 @@ class WebSocket():
         self.token_pat = r"[a-zA-Z0-9]{32}"
         self.token = None
         self.events = {}
+        self.commands = {}
 
     def event(self, func):
         self.events[func.__name__] = func
@@ -164,6 +173,26 @@ class WebSocket():
     async def dispatch(self, event_name, *args, **kwargs):
         if event_name in self.events:
             await self.events[event_name](*args, **kwargs)
+
+    def command(self, name=None):
+        def decorator(func):
+            cmd_name = name or func.__name__
+            self.commands[cmd_name] = Command(cmd_name, func)
+            return func
+        return decorator
+
+    async def process_command(self, message):
+        parts = message.content.split()
+        if not parts:
+            return
+
+        cmd_name = parts[0]
+        args = parts[1:]
+
+        if cmd_name in self.commands:
+            await self.commands[cmd_name].invoke(*args)
+        else:
+            print(f"Command '{cmd_name}' not found.")
 
     async def receive_messages(self, mat: str, hash_: str):
         async with websockets.connect("wss://ws-c.kuku.lu:21004/") as websocket:
@@ -187,6 +216,8 @@ class WebSocket():
         res = self.ses.get("https://c.kuku.lu/")
         token = re.search(self.token_pat, res.text).group()
         self.token = token
+        if hashid:
+            self.hash_id = hashid
         if self.hash_id:
             ses = requests.Session()
             j = ses.get(f"https://c.kuku.lu/{self.hash_id}").text
