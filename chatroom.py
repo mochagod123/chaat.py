@@ -166,6 +166,9 @@ class WebSocket():
         self.events = {}
         self.commands = {}
 
+    def url_to_hash(self, url: str):
+        return url.replace("https://c.kuku.lu", "").replace("/", "")
+
     def event(self, func):
         self.events[func.__name__] = func
         return func
@@ -192,7 +195,7 @@ class WebSocket():
         if cmd_name in self.commands:
             await self.commands[cmd_name].invoke(*args)
         else:
-            print(f"Command '{cmd_name}' not found.")
+            return
 
     async def receive_messages(self, mat: str, hash_: str):
         async with websockets.connect("wss://ws-c.kuku.lu:21004/") as websocket:
@@ -210,7 +213,6 @@ class WebSocket():
                     if d["type"] == "chat":
                         msg = d["msg"]
                         await self.dispatch("on_chat", Message(msg))
-                print(f"Received message: {json.loads(message.replace("@", "", 1))}")
 
     def login(self, hashid: str = None):
         res = self.ses.get("https://c.kuku.lu/")

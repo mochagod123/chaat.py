@@ -16,4 +16,6 @@ async def on_chat(message: chatroom.Message):
     await bot.process_command(message)
 
 # ログイン
-bot.login("ハッシュID")
+hash = bot.url_to_hash()
+
+bot.login(hash)
