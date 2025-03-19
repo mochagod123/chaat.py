@@ -313,7 +313,6 @@ class WebSocket():
             while True:
                 message = await websocket.recv()
                 data = json.loads(message.replace("@", "", 1))
-                print(data)
                 if data["type"] == "data":
                     d = data["data"]
                     if d["type"] == "chat":
@@ -362,6 +361,5 @@ class WebSocket():
 
     async def create_room(self):
         croom = await http_req.create_room()
-        print(croom)
         self.rooms.append(Room(croom["hash"]))
         return Room(croom["hash"])
