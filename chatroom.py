@@ -241,10 +241,19 @@ class Room():
     def url(self):
         return "https://c.kuku.lu/" + self._hash
 
+class User():
+    def __init__(self, username: str):
+        self._username = username
+
+    @property
+    def name(self):
+        return self._username
+
 class Message():
-    def __init__(self, content: str, room: Room):
+    def __init__(self, content: str, room: Room, user: User):
         self._content = content
         self._room = room
+        self._username = user
 
     @property
     def content(self):
@@ -253,18 +262,27 @@ class Message():
     @property
     def room(self):
         return self._room
+    
+    @property
+    def user(self):
+        return self._username
 
 class Context:
-    def __init__(self, room: Room):
+    def __init__(self, room: Room, user: User):
         self._room = room
+        self.user_ = user
         pass
 
     @property
     def room(self):
         return self._room
 
+    @property
+    def user(self):
+        return self.user_
+
 class WebSocket():
-    def __init__(self, hashid: str = None):
+    def __init__(self, prefix = "!", hashid: str = None):
         self.ses = requests.Session()
         self.hash_id = hashid
         self.token_pat = r"[a-zA-Z0-9]{32}"
@@ -272,6 +290,7 @@ class WebSocket():
         self.events = {}
         self.commands = {}
         self.rooms = []
+        self.prefix = prefix
 
     def url_to_hash(self, url: str):
         return url.replace("https://c.kuku.lu", "").replace("/", "")
@@ -292,34 +311,60 @@ class WebSocket():
         return decorator
 
     async def process_command(self, message: Message):
+        if not message.content.strip():
+            return
+
         parts = message.content.split()
         if not parts:
             return
 
-        cmd_name = parts[0]
+        cmd_name = parts[0].lower()
+        if not cmd_name.startswith(self.prefix):
+            return
+        cmd_name = cmd_name[len(self.prefix):]
+
         args = parts[1:]
 
         if cmd_name in self.commands:
-            await self.commands[cmd_name].invoke(Context(message.room), *args)
+            ctx = Context(message.room, message.user)
+            try:
+                await self.commands[cmd_name].invoke(ctx, *args)
+            except Exception as e:
+                print(f"Error in command '{cmd_name}': {e}")
         else:
-            return
+            print(f"Unknown command: {cmd_name}")
+
 
     async def receive_messages(self, mat: str, hash_: str):
-        async with websockets.connect("wss://ws-c.kuku.lu:21004/") as websocket:
-            await websocket.send(f"@{json.dumps({
-                            "type": "join",
-                            "room": hash_,
-                            "cookie_token": mat,
-                            "name": "ああああ#1030"
-                        })}")
+        uri = "wss://ws-c.kuku.lu:21004/"
+        async with websockets.connect(uri) as websocket:
+            join_payload = {
+                "type": "join",
+                "room": hash_,
+                "cookie_token": mat,
+                "name": "ああああ#1030"
+            }
+            await websocket.send("@" + json.dumps(join_payload))
+            
+            await self.dispatch("on_ready", Room(hash_))
+
             while True:
-                message = await websocket.recv()
-                data = json.loads(message.replace("@", "", 1))
-                if data["type"] == "data":
-                    d = data["data"]
-                    if d["type"] == "chat":
-                        msg = d["msg"]
-                        await self.dispatch("on_chat", Message(msg, Room(hash_)))
+                try:
+                    message = await websocket.recv()
+                    if message.startswith("@"):
+                        message = message[1:]
+                    
+                    data = json.loads(message)
+
+                    if data.get("type") == "data":
+                        d = data.get("data", {})
+                        if d.get("type") == "chat":
+                            msg = d.get("msg", "")
+                            user_name = d.get("name", "Unknown")
+                            await self.dispatch("on_chat", Message(msg, Room(hash_), User(user_name)))
+                except Exception as e:
+                    print(f"Error: {e}")
+                    continue
 
     def login(self, hashid: str = None):
         res = self.ses.get("https://c.kuku.lu/")
