@@ -170,13 +170,15 @@ class Http:
         return js
 
     async def send_room(self, text: str, hash: str):
+        js = {"type":"chat", "msg":f"{text}"}
+
         loop = asyncio.get_event_loop()
         data = {
             'action': 'sendData',
             'hash': hash,
             'profile_name': '匿名とむ',
             'profile_color': '#000000',
-            'data': '{"type":"chat","msg":"' + text +'"}',
+            'data': json.dumps(js),
             'csrf_token_check': self.token,
         }
 

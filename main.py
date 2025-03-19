@@ -1,5 +1,4 @@
 import chatroom
-import time
 
 bot = chatroom.WebSocket()
 
@@ -19,6 +18,10 @@ async def on_chat(message: chatroom.Message):
     # メッセージ受信
     if message.content == "こんばんは":
         await message.room.send("こんばんは！")
+    elif message.content == "るーむ":
+        await message.room.send(f"URL: {message.room.url}")
+    elif message.content == "改行":
+        await message.room.send(f"あ\nい")
     await bot.process_command(message)
 
 # ログイン
